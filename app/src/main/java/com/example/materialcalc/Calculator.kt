@@ -1,15 +1,13 @@
 package com.example.materialcalc
 
-import android.R
 import android.annotation.SuppressLint
-import androidx.compose.animation.animateContentSize
+import android.content.Context
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,24 +17,20 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,6 +77,7 @@ val buttons = listOf<String>(
 @Composable
 fun Calculator() {
     var displayText by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     Column(
         Modifier
@@ -98,18 +94,20 @@ fun Calculator() {
         ) {
             LazyRow(modifier = Modifier.align(Alignment.CenterEnd)) {
                 item {
-                    if (displayText != "error") {
-                        Text(
-                            displayText,
-                            fontSize = 80.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Text(
-                            "Syntax Error",
-                            fontSize = 50.sp,
-                            color = Color.Red
-                        )
+                    when (displayText) {
+                        in listOf<String>("error", "NaN") ->
+                            Text(
+                                "Syntax Error",
+                                fontSize = 50.sp,
+                                color = MaterialTheme.colorScheme.error
+                            )
+
+                        else ->
+                            Text(
+                                displayText,
+                                fontSize = 80.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                     }
                 }
             }
@@ -134,12 +132,41 @@ fun Calculator() {
                         animationSpec = spring(dampingRatio = 0.8f, stiffness = 500f),
                         label = "button rounded change"
                     )
+                    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
                     Button(
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = when (it) {
+                                in listOf<String>(
+                                    "AC",
+                                    "( )",
+                                    "÷",
+                                    "%",
+                                    "×",
+                                    "-",
+                                    "+"
+                                ) -> MaterialTheme.colorScheme.tertiary
+
+                                "=" -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.secondary
+                            }
+                        ),
                         onClick = {
                             when (it) {
-                                "AC" -> displayText = ""
-                                "backspace" -> displayText = displayText.dropLast(1)
+                                "AC" -> {
+                                    displayText = ""
+                                    vibrator.vibrate(
+                                        VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK)
+                                    )
+                                }
+
+                                "backspace" -> {
+                                    displayText = displayText.dropLast(1)
+                                    vibrator.vibrate(
+                                        VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+                                    )
+                                }
+
                                 "=" -> {
                                     val expression = Expression(displayText)
                                     if (expression.checkSyntax()) {
@@ -147,9 +174,19 @@ fun Calculator() {
                                     } else {
                                         displayText = "error"
                                     }
+                                    vibrator.vibrate(
+                                        VibrationEffect.createPredefined(
+                                            VibrationEffect.EFFECT_TICK
+                                        )
+                                    )
                                 }
 
-                                else -> displayText += it
+                                else -> {
+                                    displayText += it
+                                    vibrator.vibrate(
+                                        VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                                    )
+                                }
                             }
                         },
                         modifier = Modifier
@@ -179,7 +216,11 @@ fun Calculator() {
                                     contentDescription = ""
                                 )
 
-                            else -> Text(it, fontSize = 40.sp, modifier = Modifier.padding(10.dp))
+                            else -> Text(
+                                it,
+                                fontSize = 40.sp,
+                                modifier = Modifier.padding(10.dp)
+                            )
                         }
                     }
                 }
