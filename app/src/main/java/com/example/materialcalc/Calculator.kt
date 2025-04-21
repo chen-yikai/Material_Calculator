@@ -176,7 +176,7 @@ fun Calculator() {
                                     }
                                     vibrator.vibrate(
                                         VibrationEffect.createPredefined(
-                                            VibrationEffect.EFFECT_TICK
+                                            VibrationEffect.EFFECT_CLICK
                                         )
                                     )
                                 }
